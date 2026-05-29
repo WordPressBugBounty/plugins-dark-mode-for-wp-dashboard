@@ -1,27 +1,26 @@
 === Dark Mode for WP Dashboard ===
 Contributors: naiches
-Tags: dark mode, night mode, dark ui, dark mode dashboard
+Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.0
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-A smooth dark mode for the WordPress admin dashboard.
+A clean, lightweight dark mode for the WordPress admin dashboard.
 
 == Description ==
 
-Adds a smooth dark mode to the default WordPress dashboard interface. Features:
+No settings page, no bloat — just activate and go. Dark mode for every corner of your WordPress admin.
 
-* Instant toggle via admin bar — no page reload
-* Per-user preference: Dark (always) / Light (always) / Auto (follows system preference)
-* Full block editor support including the content canvas
-* Full Site Editor (FSE) support
-* Modern CSS custom properties for easy customization
-* Dark mode is ON by default — just activate and go
+* Instant toggle in the admin bar — no page reload
+* Per-user preference: Dark / Light / Auto (follows system)
+* Full block editor and Site Editor support
+* 11 popular plugins supported out of the box
+* Developer-friendly: filters for default preference, custom CSS, and editor canvas control
 
-Plugins officially supported:
+Supported plugins:
 
 * Advanced Custom Fields
 * AIOSEO
@@ -33,10 +32,13 @@ Plugins officially supported:
 * Smush
 * The SEO Framework
 * WooCommerce
-* Yoast SEO (and Yoast SEO Premium, Local, News, WooCommerce)
+* Yoast SEO (including Premium, Local, News, WooCommerce)
 
-Customization:
-Use the `dark_mode_dashboard_css` filter to load a custom stylesheet. The plugin adds a `dark-mode` class to the admin body when active, which you can use as a CSS hook.
+The plugin adds a `dark-mode` class to the admin body when active, and provides three filters for customization:
+
+* `add_filter( 'dark_mode_dashboard_css', 'your_custom_stylesheet' )` — load a custom stylesheet
+* `add_filter( 'dark_mode_dashboard_default_preference', function() { return 'disabled'; } )` — change the default mode for new users
+* `add_filter( 'dark_mode_dashboard_editor_canvas', '__return_false' )` — disable dark mode for the editor content area
 
 == Installation ==
 
@@ -49,9 +51,13 @@ Use the toggle in the admin bar to switch between dark and light mode instantly.
 == Screenshots ==
 1. Dashboard
 2. Plugins
-3. Themes
+3. Pages
 
 == Changelog ==
+= 1.3.2 =
+- Added: `dark_mode_dashboard_editor_canvas` filter to disable editor canvas dark mode
+- Fixed: Editor toggle now properly reverts Classic Editor content area to light mode
+
 = 1.3.1 =
 - Added: SmartCrawl SEO support
 - Added: Smush support

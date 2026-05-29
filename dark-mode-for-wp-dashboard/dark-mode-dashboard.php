@@ -6,7 +6,7 @@
  * Author: Naiche
  * Author URI: https://profiles.wordpress.org/naiches/
  * Text Domain: dark-mode-for-wp-dashboard
- * Version: 1.3.1
+ * Version: 1.3.2
  * Tested up to: 7.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
 
-define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.1' );
+define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.2' );
 define( 'DARK_MODE_DASHBOARD_PLUGIN_PATH', plugin_dir_url( __FILE__ ) );
 
 /**
@@ -114,7 +114,7 @@ add_action( 'admin_enqueue_scripts', 'dark_mode_dashboard_enqueue_styles' );
  * Enqueue block editor dark mode stylesheet.
  */
 function dark_mode_dashboard_enqueue_editor_styles() {
-    if ( ! dark_mode_dashboard_is_active() ) {
+    if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return;
     }
 
@@ -134,7 +134,7 @@ add_action( 'enqueue_block_editor_assets', 'dark_mode_dashboard_enqueue_editor_s
  * very early in the editor lifecycle, before enqueued stylesheets.
  */
 function dark_mode_dashboard_register_editor_style() {
-    if ( ! dark_mode_dashboard_is_active() ) {
+    if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return;
     }
     add_editor_style( plugin_dir_url( __FILE__ ) . 'assets/css/dark-mode-critical.css' );
@@ -147,11 +147,11 @@ add_action( 'admin_init', 'dark_mode_dashboard_register_editor_style' );
  * before the iframe content is rendered, preventing the white flash.
  */
 function dark_mode_dashboard_editor_settings( $settings ) {
-    if ( ! dark_mode_dashboard_is_active() ) {
+    if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return $settings;
     }
     $settings['styles'][] = array(
-        'css' => ':root{color-scheme:dark}html,body,.editor-styles-wrapper{background-color:#1a1e26!important;color:#eceff4!important}',
+        'css' => 'body.dark-mode{color-scheme:dark}body.dark-mode,body.dark-mode .editor-styles-wrapper{background-color:#1a1e26!important;color:#eceff4!important}',
     );
     return $settings;
 }
@@ -161,7 +161,7 @@ add_filter( 'block_editor_settings_all', 'dark_mode_dashboard_editor_settings' )
  * Inject dark body styles into TinyMCE (Classic Editor) iframe.
  */
 function dark_mode_dashboard_tinymce_init( $mce_init ) {
-    if ( ! dark_mode_dashboard_is_active() ) {
+    if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return $mce_init;
     }
     $styles = 'html,body,body#tinymce,body.mce-content-body{background:#1e232c!important;color:#eceff4!important}body a{color:#6b9cff}body p,body li,body td,body th,body div,body span{color:#eceff4}';
@@ -178,7 +178,7 @@ add_filter( 'tiny_mce_before_init', 'dark_mode_dashboard_tinymce_init' );
  * Load dark mode CSS into TinyMCE iframe via mce_css filter.
  */
 function dark_mode_dashboard_mce_css( $mce_css ) {
-    if ( ! dark_mode_dashboard_is_active() ) {
+    if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return $mce_css;
     }
     if ( ! empty( $mce_css ) ) {
@@ -199,7 +199,11 @@ function dark_mode_dashboard_anti_flash() {
     if ( ! dark_mode_dashboard_is_active() ) {
         return;
     }
-    echo '<style>html body.wp-admin.dark-mode{color-scheme:dark}html body.wp-admin.dark-mode,html body.wp-admin.dark-mode #wpwrap,html body.wp-admin.dark-mode #wpcontent,html body.wp-admin.dark-mode #wpbody{background-color:#1a1e26}html body.wp-admin.dark-mode #adminmenuback,html body.wp-admin.dark-mode #adminmenuwrap,html body.wp-admin.dark-mode #wpadminbar{background-color:#1a1e26}body.wp-admin.dark-mode .editor-visual-editor,body.wp-admin.dark-mode .edit-post-visual-editor,body.wp-admin.dark-mode .editor-visual-editor iframe,body.wp-admin.dark-mode .edit-post-visual-editor iframe,body.wp-admin.dark-mode .interface-interface-skeleton__content{background-color:#1a1e26!important}body.wp-admin.dark-mode .wp-editor-container,body.wp-admin.dark-mode .wp-editor-area,body.wp-admin.dark-mode #wp-content-editor-container,body.wp-admin.dark-mode .wp-editor-wrap,body.wp-admin.dark-mode #content_ifr,body.wp-admin.dark-mode .mce-edit-area,body.wp-admin.dark-mode .mce-edit-area iframe{background-color:#1e232c!important;color:#eceff4!important}</style>';
+    $css = 'html body.wp-admin.dark-mode{color-scheme:dark}html body.wp-admin.dark-mode,html body.wp-admin.dark-mode #wpwrap,html body.wp-admin.dark-mode #wpcontent,html body.wp-admin.dark-mode #wpbody{background-color:#1a1e26}html body.wp-admin.dark-mode #adminmenuback,html body.wp-admin.dark-mode #adminmenuwrap,html body.wp-admin.dark-mode #wpadminbar{background-color:#1a1e26}';
+    if ( apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
+        $css .= 'body.wp-admin.dark-mode .editor-visual-editor,body.wp-admin.dark-mode .edit-post-visual-editor,body.wp-admin.dark-mode .editor-visual-editor iframe,body.wp-admin.dark-mode .edit-post-visual-editor iframe,body.wp-admin.dark-mode .interface-interface-skeleton__content{background-color:#1a1e26!important}body.wp-admin.dark-mode .wp-editor-container,body.wp-admin.dark-mode .wp-editor-area,body.wp-admin.dark-mode #wp-content-editor-container,body.wp-admin.dark-mode .wp-editor-wrap,body.wp-admin.dark-mode #content_ifr,body.wp-admin.dark-mode .mce-edit-area,body.wp-admin.dark-mode .mce-edit-area iframe{background-color:#1e232c!important;color:#eceff4!important}';
+    }
+    echo '<style>' . $css . '</style>';
 }
 add_action( 'admin_head', 'dark_mode_dashboard_anti_flash', 1 );
 
@@ -259,8 +263,9 @@ function dark_mode_dashboard_admin_footer() {
         return;
     }
 
-    $nonce    = wp_create_nonce( 'dark_mode_dashboard_nonce' );
-    $ajax_url = esc_url( admin_url( 'admin-ajax.php' ) );
+    $nonce          = wp_create_nonce( 'dark_mode_dashboard_nonce' );
+    $ajax_url       = esc_url( admin_url( 'admin-ajax.php' ) );
+    $editor_canvas  = apply_filters( 'dark_mode_dashboard_editor_canvas', true );
     ?>
     <style>
         #wpadminbar #wp-admin-bar-dark-mode-dashboard .dm-icon {
@@ -292,6 +297,52 @@ function dark_mode_dashboard_admin_footer() {
         }
         updateIcon();
 
+        <?php if ( $editor_canvas ) : ?>
+        function syncIframes(isDark) {
+            document.querySelectorAll('iframe[name="editor-canvas"]').forEach(function (iframe) {
+                try {
+                    var b = iframe.contentDocument.body;
+                    if (isDark) { b.classList.add('dark-mode'); } else { b.classList.remove('dark-mode', 'dark-mode-auto'); }
+                } catch (e) {}
+            });
+            var mce = document.getElementById('content_ifr');
+            if (mce) {
+                try {
+                    var doc = mce.contentDocument;
+                    var id = 'dm-toggle-override';
+                    var existing = doc.getElementById(id);
+                    if (isDark) {
+                        if (existing) existing.remove();
+                    } else {
+                        if (!existing) {
+                            var s = doc.createElement('style');
+                            s.id = id;
+                            s.textContent = 'html,body,body#tinymce,body.mce-content-body{background:#fff!important;color:#444!important}body p,body li,body td,body th,body div,body span{color:#444!important}body a{color:#0073aa!important}';
+                            doc.head.appendChild(s);
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+
+        var iframeReady = false;
+        function checkIframe() {
+            var iframe = document.querySelector('iframe[name="editor-canvas"]');
+            if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
+                if (!iframeReady && document.body.classList.contains('dark-mode')) {
+                    iframe.contentDocument.body.classList.add('dark-mode');
+                    iframeReady = true;
+                }
+            }
+        }
+        var obs = new MutationObserver(checkIframe);
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+        document.addEventListener('load', function (e) {
+            if (e.target.name === 'editor-canvas') checkIframe();
+        }, true);
+        checkIframe();
+        <?php endif; ?>
+
         toggle.addEventListener('click', function (e) {
             e.preventDefault();
 
@@ -308,6 +359,9 @@ function dark_mode_dashboard_admin_footer() {
                 newPref = 'enabled';
             }
             updateIcon();
+            <?php if ( $editor_canvas ) : ?>
+            syncIframes(newPref !== 'disabled');
+            <?php endif; ?>
 
             var formData = new FormData();
             formData.append('action', 'dark_mode_dashboard_toggle');
