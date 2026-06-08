@@ -2,7 +2,7 @@
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.0
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -54,6 +54,11 @@ Use the toggle in the admin bar to switch between dark and light mode instantly.
 3. Pages
 
 == Changelog ==
+= 1.3.3 =
+- Fixed: jQuery UI autocomplete dropdowns (tags, classic editor) now readable in dark mode
+- Fixed: Command palette (⌘K) icons and "No results found" text were invisible (dark on dark)
+- Fixed: Admin bar kbd shortcut badge no longer shows a light border
+
 = 1.3.2 =
 - Added: `dark_mode_dashboard_editor_canvas` filter to disable editor canvas dark mode
 - Fixed: Editor toggle now properly reverts Classic Editor content area to light mode
