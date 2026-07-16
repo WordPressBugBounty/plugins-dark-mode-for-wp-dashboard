@@ -6,7 +6,7 @@
  * Author: Naiche
  * Author URI: https://profiles.wordpress.org/naiches/
  * Text Domain: dark-mode-for-wp-dashboard
- * Version: 1.3.3
+ * Version: 1.3.4
  * Tested up to: 7.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
 
-define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.3' );
+define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.4' );
 define( 'DARK_MODE_DASHBOARD_PLUGIN_PATH', plugin_dir_url( __FILE__ ) );
 
 /**
@@ -132,13 +132,28 @@ add_action( 'enqueue_block_editor_assets', 'dark_mode_dashboard_enqueue_editor_s
 /**
  * Register editor style via add_editor_style — this loads inside the iframe
  * very early in the editor lifecycle, before enqueued stylesheets.
+ *
+ * IMPORTANT: only register stylesheets that actually exist on disk. WordPress
+ * fetches every add_editor_style() URL server-side and inlines the response
+ * body into the block editor settings WITHOUT checking the HTTP status. A
+ * missing file is rewritten to WordPress and returns the themed 404 *page*
+ * (full HTML), which then gets injected into the Custom HTML block's sandboxed
+ * preview iframe — rendering the 404 page inside the editor. (Support ticket:
+ * 1.3.3 shipped a dead reference to the deleted dark-mode-critical.css.)
  */
 function dark_mode_dashboard_register_editor_style() {
     if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return;
     }
-    add_editor_style( plugin_dir_url( __FILE__ ) . 'assets/css/dark-mode-critical.css' );
-    add_editor_style( plugin_dir_url( __FILE__ ) . 'assets/css/dark-mode-editor.css' );
+
+    $base_path = plugin_dir_path( __FILE__ ) . 'assets/css/';
+    $base_url  = plugin_dir_url( __FILE__ ) . 'assets/css/';
+
+    foreach ( array( 'dark-mode-editor.css' ) as $file ) {
+        if ( file_exists( $base_path . $file ) ) {
+            add_editor_style( $base_url . $file );
+        }
+    }
 }
 add_action( 'admin_init', 'dark_mode_dashboard_register_editor_style' );
 
@@ -176,15 +191,27 @@ add_filter( 'tiny_mce_before_init', 'dark_mode_dashboard_tinymce_init' );
 
 /**
  * Load dark mode CSS into TinyMCE iframe via mce_css filter.
+ *
+ * Only append stylesheets that exist on disk — a missing file 404s to a broken
+ * stylesheet link in the classic editor iframe. The inline content_style added
+ * in dark_mode_dashboard_tinymce_init() already darkens the editor, so this is
+ * best-effort. (dark-mode-critical.css was removed in 1.3.0; do not reference
+ * files that no longer ship.)
  */
 function dark_mode_dashboard_mce_css( $mce_css ) {
     if ( ! dark_mode_dashboard_is_active() || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         return $mce_css;
     }
+
+    $file = 'assets/css/dark-mode-editor.css';
+    if ( ! file_exists( plugin_dir_path( __FILE__ ) . $file ) ) {
+        return $mce_css;
+    }
+
     if ( ! empty( $mce_css ) ) {
         $mce_css .= ',';
     }
-    $mce_css .= DARK_MODE_DASHBOARD_PLUGIN_PATH . 'assets/css/dark-mode-critical.css';
+    $mce_css .= DARK_MODE_DASHBOARD_PLUGIN_PATH . $file;
     return $mce_css;
 }
 add_filter( 'mce_css', 'dark_mode_dashboard_mce_css' );

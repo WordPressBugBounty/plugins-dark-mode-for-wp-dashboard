@@ -1,8 +1,8 @@
 === Dark Mode for WP Dashboard ===
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
-Tested up to: 7.0
-Stable tag: 1.3.3
+Tested up to: 7.0.1
+Stable tag: 1.3.4
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -17,7 +17,7 @@ No settings page, no bloat — just activate and go. Dark mode for every corner 
 * Instant toggle in the admin bar — no page reload
 * Per-user preference: Dark / Light / Auto (follows system)
 * Full block editor and Site Editor support
-* 11 popular plugins supported out of the box
+* 12 popular plugins supported out of the box
 * Developer-friendly: filters for default preference, custom CSS, and editor canvas control
 
 Supported plugins:
@@ -33,6 +33,7 @@ Supported plugins:
 * The SEO Framework
 * WooCommerce
 * Yoast SEO (including Premium, Local, News, WooCommerce)
+* Zamok
 
 The plugin adds a `dark-mode` class to the admin body when active, and provides three filters for customization:
 
@@ -54,6 +55,16 @@ Use the toggle in the admin bar to switch between dark and light mode instantly.
 3. Pages
 
 == Changelog ==
+= 1.3.4 =
+- Fixed: activating the plugin made the Gutenberg Custom HTML block preview render the site's 404 page inside the sandboxed preview iframe (with console sandbox violations). Caused by a leftover reference to a deleted editor stylesheet; editor styles are now only registered when the file exists
+- Fixed: ACF Link field — the selected-link summary box rendered as a white island (ACF hardcodes a white background); now themed to the dark surface with a legible URL and visible external-link icon
+- Fixed: WooCommerce variable-product Variations panel — variation rows, headers, row separators, and inner fields rendered light; now fully dark
+- Fixed: WooCommerce product-data tab column showed a white strip below the last tab (the `ul.wc-tabs` pseudo-element fill); now dark
+- Fixed: AIOSEO focus keyphrase pills (metabox + editor sidebar) rendered as bright light "islands" — now themed to the dark surface, with legible keyphrase text, icons, inline rename field, and score colours
+- Fixed: AIOSEO Score button in the classic Publish box had a white background — now dark, keeping the green/orange/red score colour on the text and border
+- Fixed: Zamok module warning notices rendered as light-on-light — now a readable amber-tinted notice on dark
+- Fixed: WooCommerce Select2 multi-select chips (e.g. product tags) rendered as light-grey islands — now themed to the dark surface, including the remove (×) button
+
 = 1.3.3 =
 - Fixed: jQuery UI autocomplete dropdowns (tags, classic editor) now readable in dark mode
 - Fixed: Command palette (⌘K) icons and "No results found" text were invisible (dark on dark)
