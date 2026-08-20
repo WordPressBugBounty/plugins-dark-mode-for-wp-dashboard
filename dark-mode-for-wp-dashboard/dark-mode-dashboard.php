@@ -6,7 +6,7 @@
  * Author: Naiche
  * Author URI: https://profiles.wordpress.org/naiches/
  * Text Domain: dark-mode-for-wp-dashboard
- * Version: 1.3.4
+ * Version: 1.3.5
  * Tested up to: 7.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
 
-define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.4' );
+define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.5' );
 define( 'DARK_MODE_DASHBOARD_PLUGIN_PATH', plugin_dir_url( __FILE__ ) );
 
 /**
@@ -127,7 +127,23 @@ function dark_mode_dashboard_enqueue_editor_styles() {
         $editor_ver
     );
 }
-add_action( 'enqueue_block_editor_assets', 'dark_mode_dashboard_enqueue_editor_styles' );
+/*
+ * enqueue_block_assets, not enqueue_block_editor_assets: the post content is
+ * rendered in an iframe, and WordPress only carries styles registered on this
+ * hook into it. On the editor-assets hook it warned on every load —
+ * "dark-mode-dashboard-editor-css was added to the iframe incorrectly" — and
+ * relied on a compatibility shim that will eventually go. The hook also fires on
+ * the front end, so the admin guard keeps this out of the site itself.
+ */
+add_action(
+	'enqueue_block_assets',
+	function () {
+		if ( ! is_admin() ) {
+			return;
+		}
+		dark_mode_dashboard_enqueue_editor_styles();
+	}
+);
 
 /**
  * Register editor style via add_editor_style — this loads inside the iframe
@@ -352,22 +368,47 @@ function dark_mode_dashboard_admin_footer() {
             }
         }
 
-        var iframeReady = false;
+        // The canvas body is created inside the iframe document, which is not part
+        // of this document's mutation tree — so a MutationObserver here never fires
+        // for it, and the block editor remounts the iframe while loading. The old
+        // code also latched after its first success, so a remounted canvas was
+        // never darkened again. That is why the editor loaded light and only a
+        // toggle (which re-applies to whatever iframe exists now) fixed it.
+        //
+        // Applying it idempotently on a short poll costs nothing and survives every
+        // remount; the observer and load listener just make it react sooner.
         function checkIframe() {
-            var iframe = document.querySelector('iframe[name="editor-canvas"]');
-            if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
-                if (!iframeReady && document.body.classList.contains('dark-mode')) {
-                    iframe.contentDocument.body.classList.add('dark-mode');
-                    iframeReady = true;
-                }
-            }
+            var wantDark = document.body.classList.contains('dark-mode')
+                || document.body.classList.contains('dark-mode-auto');
+
+            document.querySelectorAll('iframe[name="editor-canvas"]').forEach(function (iframe) {
+                try {
+                    var b = iframe.contentDocument && iframe.contentDocument.body;
+                    if (!b) { return; }
+                    if (wantDark) {
+                        if (!b.classList.contains('dark-mode')) { b.classList.add('dark-mode'); }
+                    } else if (b.classList.contains('dark-mode') || b.classList.contains('dark-mode-auto')) {
+                        b.classList.remove('dark-mode', 'dark-mode-auto');
+                    }
+                } catch (e) {}
+            });
         }
+
         var obs = new MutationObserver(checkIframe);
         obs.observe(document.documentElement, { childList: true, subtree: true });
         document.addEventListener('load', function (e) {
-            if (e.target.name === 'editor-canvas') checkIframe();
+            if (e.target && e.target.name === 'editor-canvas') { checkIframe(); }
         }, true);
         checkIframe();
+
+        // Keep checking while the editor mounts, then back off. Editors that take
+        // their time (large posts, slow plugins) still get styled without leaving a
+        // timer running for the life of the page.
+        var canvasTicks = 0;
+        var canvasTimer = setInterval(function () {
+            checkIframe();
+            if (++canvasTicks > 100) { clearInterval(canvasTimer); }
+        }, 150);
         <?php endif; ?>
 
         toggle.addEventListener('click', function (e) {
