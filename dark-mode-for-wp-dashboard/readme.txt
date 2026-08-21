@@ -2,7 +2,7 @@
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.0
-Stable tag: 1.3.5
+Stable tag: 1.3.6
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -55,6 +55,9 @@ Use the toggle in the admin bar to switch between dark and light mode instantly.
 3. Pages
 
 == Changelog ==
+= 1.3.6 =
+- Added: Cocoon theme support. The Cocoon settings screen has a strip of 36 tabs that Cocoon paints with its own light backgrounds, so in dark mode they rendered as blank white rectangles with unreadable captions — reported in a review. Tabs, the active tab, the panel behind it and the template screen's snippet browser are now themed; the live site preview embedded on the settings screen keeps the site's own colours, as it should
+
 = 1.3.5 =
 - Fixed: the block editor loaded the post content in light mode; switching to light and back made it dark. The editor renders the content in an iframe and the dark class was applied only once, before the editor finishes mounting its canvas — so the canvas WordPress ends up using never received it, and only a toggle put it back. It is now kept in sync for as long as the editor is mounting, and auto mode is honoured there too
 - Fixed: the editor stylesheet was registered on a hook WordPress no longer wants for iframe styles, warning "added to the iframe incorrectly" on every editor load and relying on a compatibility shim; it now uses enqueue_block_assets
