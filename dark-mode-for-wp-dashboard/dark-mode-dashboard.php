@@ -6,8 +6,8 @@
  * Author: Naiche
  * Author URI: https://profiles.wordpress.org/naiches/
  * Text Domain: dark-mode-for-wp-dashboard
- * Version: 1.3.6
- * Tested up to: 7.0
+ * Version: 1.3.7
+ * Tested up to: 7.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
 
-define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.6' );
+define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.7' );
 define( 'DARK_MODE_DASHBOARD_PLUGIN_PATH', plugin_dir_url( __FILE__ ) );
 
 /**
@@ -246,6 +246,12 @@ function dark_mode_dashboard_anti_flash() {
     if ( apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
         $css .= 'body.wp-admin.dark-mode .editor-visual-editor,body.wp-admin.dark-mode .edit-post-visual-editor,body.wp-admin.dark-mode .editor-visual-editor iframe,body.wp-admin.dark-mode .edit-post-visual-editor iframe,body.wp-admin.dark-mode .interface-interface-skeleton__content{background-color:#1a1e26!important}body.wp-admin.dark-mode .wp-editor-container,body.wp-admin.dark-mode .wp-editor-area,body.wp-admin.dark-mode #wp-content-editor-container,body.wp-admin.dark-mode .wp-editor-wrap,body.wp-admin.dark-mode #content_ifr,body.wp-admin.dark-mode .mce-edit-area,body.wp-admin.dark-mode .mce-edit-area iframe{background-color:#1e232c!important;color:#eceff4!important}';
     }
+    // $css is built entirely from the string literals above — no variable, user
+    // input or filtered value is ever interpolated into it (the one filter here
+    // only decides whether to append a second literal). Escaping it would be
+    // wrong rather than merely redundant: esc_html() would mangle any child
+    // combinator a future selector needs.
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Hardcoded CSS literal, see above.
     echo '<style>' . $css . '</style>';
 }
 add_action( 'admin_head', 'dark_mode_dashboard_anti_flash', 1 );
@@ -387,8 +393,13 @@ function dark_mode_dashboard_admin_footer() {
                     if (!b) { return; }
                     if (wantDark) {
                         if (!b.classList.contains('dark-mode')) { b.classList.add('dark-mode'); }
-                    } else if (b.classList.contains('dark-mode') || b.classList.contains('dark-mode-auto')) {
+                        // The canvas stylesheet is scoped to :not(.dark-mode-off), so
+                        // the absence of any class already means dark. Clearing the
+                        // opt-out is what matters here.
+                        b.classList.remove('dark-mode-off');
+                    } else {
                         b.classList.remove('dark-mode', 'dark-mode-auto');
+                        if (!b.classList.contains('dark-mode-off')) { b.classList.add('dark-mode-off'); }
                     }
                 } catch (e) {}
             });
@@ -401,13 +412,21 @@ function dark_mode_dashboard_admin_footer() {
         }, true);
         checkIframe();
 
-        // Keep checking while the editor mounts, then back off. Editors that take
-        // their time (large posts, slow plugins) still get styled without leaving a
-        // timer running for the life of the page.
+        // Poll fast while the editor mounts, then slow down — but never stop.
+        //
+        // This used to clear the timer after 100 ticks (15 seconds). On a heavy
+        // site the canvas can still remount after that, and once the timer was
+        // gone nothing re-applied the class. With the stylesheet now scoped to
+        // :not(.dark-mode-off) a missed class no longer breaks the canvas, so
+        // this is belt-and-braces — but a 2-second heartbeat is cheap insurance
+        // against a remount an hour into a writing session.
         var canvasTicks = 0;
-        var canvasTimer = setInterval(function () {
+        var canvasTimer = setInterval(function tick() {
             checkIframe();
-            if (++canvasTicks > 100) { clearInterval(canvasTimer); }
+            if (++canvasTicks === 100) {
+                clearInterval(canvasTimer);
+                canvasTimer = setInterval(checkIframe, 2000);
+            }
         }, 150);
         <?php endif; ?>
 

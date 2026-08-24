@@ -1,8 +1,8 @@
 === Dark Mode for WP Dashboard ===
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
-Tested up to: 7.0
-Stable tag: 1.3.6
+Tested up to: 7.1
+Stable tag: 1.3.7
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -55,6 +55,12 @@ Use the toggle in the admin bar to switch between dark and light mode instantly.
 3. Pages
 
 == Changelog ==
+= 1.3.7 =
+- Fixed: the block editor's writing area could end up unreadable — light text on a white canvas, or the theme's dark text on our dark background. The canvas background was only ever coming from an inline style that WordPress discards when "Use theme styles" is switched off, and the canvas stylesheet as a whole depended on a class that JavaScript adds from outside the iframe, which could arrive late or not at all. The stylesheet now sets the canvas colours itself and defaults to dark rather than to nothing
+- Fixed: in WordPress 7 the post sidebar's excerpt was almost invisible — near-black text on the dark panel, at 1.16:1 contrast. WP 7 rebuilt that sidebar on component primitives the plugin had never styled. Reported on the support forum
+- Fixed: the "Post" label beside the title in the editor's document bar had the same problem, at 1.07:1
+- Fixed: the unapprove action on the comments screen, and the skip-to-content link that keyboard users land on first, were both below the readable threshold
+
 = 1.3.6 =
 - Added: Cocoon theme support. The Cocoon settings screen has a strip of 36 tabs that Cocoon paints with its own light backgrounds, so in dark mode they rendered as blank white rectangles with unreadable captions — reported in a review. Tabs, the active tab, the panel behind it and the template screen's snippet browser are now themed; the live site preview embedded on the settings screen keeps the site's own colours, as it should
 
