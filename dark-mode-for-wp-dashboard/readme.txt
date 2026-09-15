@@ -2,7 +2,7 @@
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.1
-Stable tag: 1.3.7
+Stable tag: 1.3.9
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -17,7 +17,7 @@ No settings page, no bloat — just activate and go. Dark mode for every corner 
 * Instant toggle in the admin bar — no page reload
 * Per-user preference: Dark / Light / Auto (follows system)
 * Full block editor and Site Editor support
-* 12 popular plugins supported out of the box
+* 13 popular plugins supported out of the box
 * Developer-friendly: filters for default preference, custom CSS, and editor canvas control
 
 Supported plugins:
@@ -25,6 +25,7 @@ Supported plugins:
 * Advanced Custom Fields
 * AIOSEO
 * Better Search Replace
+* Code Snippets
 * Jetpack
 * Kadence Blocks
 * Nested Pages
@@ -55,6 +56,30 @@ Use the toggle in the admin bar to switch between dark and light mode instantly.
 3. Pages
 
 == Changelog ==
+= 1.3.9 =
+- Added: support for the Code Snippets plugin. Its toolbar, snippet list, type navigation, import cards and drop zone, settings tabs and the dropdowns on the edit screen now follow dark mode instead of staying white. The code editor itself is left as it is: Code Snippets ships its own editor themes and lets you choose one, and overriding them here would only fight that choice
+
+= 1.3.8 =
+- Fixed: on a right-to-left site, switching the lights on loaded the left-to-right stylesheets and left the dashboard laid out the wrong way round until the page was reloaded. The sheets fetched by the toggle are added to the page directly, which skips the right-to-left substitution WordPress performs on stylesheets it loads itself; the correct build is now chosen before the list ever reaches the browser
+- Fixed: when the server refused to save a change — an expired session, a dropped connection, a blocked request — the page was put back into dark mode rather than into whatever was actually still stored. For anyone on "Auto (system)" that meant a dark dashboard on a light machine, because "auto" was being treated as a synonym for "dark". The page now returns to the setting the server really has, auto included, and follows the operating system again from there
+- Fixed: on a light dashboard, turning the lights on when the dark stylesheets still had to be fetched, and having the save fail, ended with the page dark anyway — under a message saying the previous setting had been restored. The stylesheets arrived after the failure and switched the page over regardless. A change that has been abandoned no longer gets applied when its stylesheets turn up
+- Fixed: on "Auto (system)", switching the lights on or off from the toolbar was undone again the moment the operating system changed theme — at sunset, or when a scheduled theme flipped. The toggle appeared to work, then the choice quietly reverted while the page sat open. An explicit choice now holds until the page is reloaded
+- Fixed: "Auto (system)" did not follow the system. It behaved as permanent dark: the dashboard, block editor and classic editor were dark whatever the operating system was set to, and changing the OS theme did nothing. Auto is now a state of its own — dark when your OS is dark, light when it is light, and it follows the OS live, without a reload
+- Fixed: the toggle in the block editor only half worked in both directions. Switching to light left the page background, block toolbar, link popover and native form controls dark behind a light editor; switching to dark left the writing area white, because the canvas stylesheet was never loaded for anyone whose preference was light. Both directions now switch the whole editor, chrome and canvas alike
+- Fixed: on right-to-left sites the block editor could be broken by the plugin. WordPress automatically looks for a second, right-to-left version of any editor stylesheet a plugin registers, and it does not check that the file exists before fetching it; that request returned the site's own "page not found" page, whose HTML was then injected into the editor as if it were a stylesheet — the same failure reported against 1.3.4. The plugin no longer uses that mechanism at all, and now ships a proper right-to-left build of every stylesheet, so notice stripes, table borders and dropdown arrows sit on the correct side
+- Fixed: on block themes, WordPress made the server fetch the editor stylesheet from itself over HTTP on every single editor page load, uncached and without checking the response. On hosts where that loopback request is slow, every editor load waited for it. That request is gone
+- Changed: the admin stylesheet was one 292 KB file loaded on every admin page for every user, including people who had turned dark mode off and sites running none of the supported plugins. It is now split: a core stylesheet plus one small file per supported plugin, each loaded only when that plugin is actually active. A site running WooCommerce no longer downloads rules for eleven other plugins, and users who chose "Light (always)" download 600 bytes instead of 292 KB — the rest is fetched only if they switch the lights on
+- Fixed: the toggle never checked whether the server accepted the change. An expired session, a dropped connection or a blocked request left the page showing a mode that was never saved, and the next page load silently undid it. It now confirms the save, puts the previous state back when it fails, and says what happened
+- Fixed: the toggle had no accessible state. It is now a proper switch: screen readers get its on/off state, a "switch to dark/light mode" label, and an announcement when it changes
+- Fixed: a developer using the documented filter to change the default preference got a light dashboard with a dark block editor, a dark classic editor and the wrong option ticked on their profile. All four now agree
+- Fixed: on a site with a large number of users, the one-time upgrade from the pre-1.3 preference format loaded every affected user into memory in a single request. It now runs in batches, and no longer discards the old value before confirming the new one was written. It is also tracked per site rather than across a network, so one site finishing cannot mark every other site done and strand their users on the old format, and someone who sets a preference before the migration reaches them keeps the choice they made
+- Fixed: thirteen editor selectors targeted markup WordPress has since removed, so parts of the Site Editor and the block inserter were never themed. They now match current WordPress
+- Fixed: cards, notices, tables and panels sat on the "floating" depth level reserved for dropdowns and popovers; a rule meant to catch stray white backgrounds recoloured the text of any element with an inline background instead; layout tables such as Settings screens were painted as bordered boxes; and an element class WordPress uses for text was being painted in the page background colour, making it invisible
+- Changed: the toggle's styles and script are now loaded as normal files rather than written inline, so a site with a strict Content Security Policy on the dashboard keeps a working toggle
+- Added: deleting the plugin now removes the preference it stored against each user. Deactivating it still leaves everything alone
+- Fixed: a full pass over 44 admin screens in all four modes found and fixed 25 contrast and coverage faults: the update-count bubbles in the admin menu were unreadable on every screen, theme cards on Appearance → Themes and the "Activate" button stayed white, the block inserter and the publish rail rendered white, the editor's primary buttons fell below the readability threshold, WooCommerce's product short-description editor was a large white panel, and links inside WooCommerce notices repainted the buttons around them. The cause behind most of them was a text colour being used as a solid fill; the token set now has proper fill colours and a rule about which is which
+- Fixed: the Customizer downloaded around 164 KB of this plugin's CSS that could never apply there, because that screen never receives the body class the rules key on. It now loads nothing from this plugin
+
 = 1.3.7 =
 - Fixed: the block editor's writing area could end up unreadable — light text on a white canvas, or the theme's dark text on our dark background. The canvas background was only ever coming from an inline style that WordPress discards when "Use theme styles" is switched off, and the canvas stylesheet as a whole depended on a class that JavaScript adds from outside the iframe, which could arrive late or not at all. The stylesheet now sets the canvas colours itself and defaults to dark rather than to nothing
 - Fixed: in WordPress 7 the post sidebar's excerpt was almost invisible — near-black text on the dark panel, at 1.16:1 contrast. WP 7 rebuilt that sidebar on component primitives the plugin had never styled. Reported on the support forum
