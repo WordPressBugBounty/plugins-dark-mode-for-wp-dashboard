@@ -2,7 +2,7 @@
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.1
-Stable tag: 1.3.9
+Stable tag: 1.3.10
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -17,7 +17,7 @@ No settings page, no bloat — just activate and go. Dark mode for every corner 
 * Instant toggle in the admin bar — no page reload
 * Per-user preference: Dark / Light / Auto (follows system)
 * Full block editor and Site Editor support
-* 13 popular plugins supported out of the box
+* 14 popular plugins supported out of the box
 * Developer-friendly: filters for default preference, custom CSS, and editor canvas control
 
 Supported plugins:
@@ -33,12 +33,13 @@ Supported plugins:
 * Smush
 * The SEO Framework
 * WooCommerce
+* WPCode (Insert Headers and Footers)
 * Yoast SEO (including Premium, Local, News, WooCommerce)
 * Zamok
 
 The plugin adds a `dark-mode` class to the admin body when active, and provides three filters for customization:
 
-* `add_filter( 'dark_mode_dashboard_css', 'your_custom_stylesheet' )` — load a custom stylesheet
+* `add_filter( 'dark_mode_dashboard_css', 'your_stylesheet_url' )` — replace the plugin's admin stylesheet with your own. This swaps the whole file rather than adding to it, so your stylesheet has to cover everything the plugin's does, and it does not affect the post editor's content area. To add a few rules of your own instead, enqueue a second stylesheet — see the FAQ
 * `add_filter( 'dark_mode_dashboard_default_preference', function() { return 'disabled'; } )` — change the default mode for new users
 * `add_filter( 'dark_mode_dashboard_editor_canvas', '__return_false' )` — disable dark mode for the editor content area
 
@@ -50,12 +51,65 @@ The plugin adds a `dark-mode` class to the admin body when active, and provides 
 
 Use the toggle in the admin bar to switch between dark and light mode instantly. You can also set your preference to Auto in your user profile to follow your system's dark mode setting.
 
+== Frequently Asked Questions ==
+
+= How do I add my own CSS to the admin? =
+
+Don't edit the files inside the plugin — an update overwrites them. And `dark_mode_dashboard_css` is not the filter for this: it replaces the plugin's admin stylesheet rather than adding to it, and it does not reach the post editor's content area, which is a separate stylesheet.
+
+To add rules of your own, enqueue your own stylesheet from your theme's `functions.php`:
+
+    add_action( 'admin_enqueue_scripts', function () {
+        wp_enqueue_style(
+            'my-admin-tweaks',
+            get_stylesheet_directory_uri() . '/admin-tweaks.css',
+            array( 'dark-mode-dashboard' ),
+            '1.0'
+        );
+    } );
+
+Naming `dark-mode-dashboard` as a dependency makes your file load after the plugin's, so your rules win without needing `!important`. Note that a dependency also pulls the plugin's stylesheet in for users who have dark mode switched off, who would otherwise download almost nothing. If that matters to you, drop the dependency and hook in at a later priority instead:
+
+    add_action( 'admin_enqueue_scripts', function () {
+        wp_enqueue_style( 'my-admin-tweaks', get_stylesheet_directory_uri() . '/admin-tweaks.css', array(), '1.0' );
+    }, 20 );
+
+= How do I change the font or size in the post editor? =
+
+The post content renders inside an iframe, and only styles enqueued on `enqueue_block_assets` are carried into it:
+
+    add_action( 'enqueue_block_assets', function () {
+        if ( ! is_admin() ) {
+            return;
+        }
+        wp_enqueue_style(
+            'my-editor-fonts',
+            get_stylesheet_directory_uri() . '/editor-fonts.css',
+            array(),
+            '1.0'
+        );
+    } );
+
+One thing catches people out. Inside that iframe the `body` element is itself the `.editor-styles-wrapper` element — not its parent. So write the selector as a single compound with no space between the two classes:
+
+    body.editor-styles-wrapper p { font: 22px/1.5 Georgia, serif; }
+
+Written as `body.dark-mode .editor-styles-wrapper p`, with a space, it looks for a wrapper nested inside the body, finds nothing, and silently does nothing. Use `body.dark-mode.editor-styles-wrapper p` to apply a rule in dark mode only, or leave `.dark-mode` out to apply it in both modes.
+
+= Which class does the plugin add? =
+
+`dark-mode` on the admin body when dark mode is on, and `dark-mode-auto` when the preference is Auto. Auto deliberately does not also get `dark-mode`, so that it can follow the operating system.
+
 == Screenshots ==
 1. Dashboard
 2. Plugins
 3. Pages
 
 == Changelog ==
+= 1.3.10 =
+- Added: WPCode (Insert Headers and Footers) support — a different plugin from Code Snippets. Its editor panels and snippet list were unreadable in dark mode. Thanks to catmaniax
+- Fixed (docs): `dark_mode_dashboard_css` replaces the admin stylesheet rather than adding to it, and never reaches the post editor. Corrected, plus a new FAQ on adding your own CSS. Thanks to Trace Meek
+
 = 1.3.9 =
 - Added: support for the Code Snippets plugin. Its toolbar, snippet list, type navigation, import cards and drop zone, settings tabs and the dropdowns on the edit screen now follow dark mode instead of staying white. The code editor itself is left as it is: Code Snippets ships its own editor themes and lets you choose one, and overriding them here would only fight that choice
 

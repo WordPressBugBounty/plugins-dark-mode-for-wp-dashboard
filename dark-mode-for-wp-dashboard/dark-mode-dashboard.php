@@ -6,7 +6,7 @@
  * Author: Naiche
  * Author URI: https://profiles.wordpress.org/naiches/
  * Text Domain: dark-mode-for-wp-dashboard
- * Version: 1.3.9
+ * Version: 1.3.10
  * Tested up to: 7.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
 
-define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.9' );
+define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.10' );
 define( 'DARK_MODE_DASHBOARD_PLUGIN_PATH', plugin_dir_url( __FILE__ ) );
 define( 'DARK_MODE_DASHBOARD_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -117,6 +117,7 @@ function dark_mode_dashboard_style_modules() {
         'the-seo-framework'     => array( 'constants' => array( 'THE_SEO_FRAMEWORK_VERSION' ), 'functions' => array( 'tsf' ) ),
         'woocommerce'           => array( 'classes' => array( 'WooCommerce' ) ),
         'wp-nested-pages'       => array( 'constants' => array( 'NESTEDPAGES_VERSION' ), 'plugin' => 'wp-nested-pages/nestedpages.php' ),
+        'wpcode'                => array( 'constants' => array( 'WPCODE_VERSION' ), 'plugin' => 'insert-headers-and-footers/ihaf.php' ),
         'yoast-seo'             => array( 'constants' => array( 'WPSEO_VERSION' ) ),
         'zamok'                 => array( 'constants' => array( 'ZAMOK_VERSION' ) ),
         'cocoon'                => array( 'themes' => array( 'cocoon-master', 'cocoon-child-master' ) ),
