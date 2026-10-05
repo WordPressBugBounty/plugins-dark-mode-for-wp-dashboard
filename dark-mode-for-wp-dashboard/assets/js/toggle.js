@@ -129,6 +129,137 @@
 		( doc.head || doc.documentElement ).appendChild( style );
 	}
 
+	// ---------------------------------------------------------------------
+	// Coloured blocks inside the canvas
+	// ---------------------------------------------------------------------
+
+	/*
+	 * The dark canvas paints text light. A block the author gave a light
+	 * background but no text colour of its own — a white Group, a cream
+	 * paragraph, a light Cover — then rendered light-on-light, at around
+	 * 1.1:1. Which backgrounds are light cannot be known from CSS (custom
+	 * colours are inline hex, theme presets have arbitrary names), so each one
+	 * is measured here and tagged, and editor-canvas.scss gives the tagged
+	 * block a text colour that reads on it:
+	 *
+	 *   data-dm-ink="light"   light background → dark text
+	 *   data-dm-ink="dark"    dark background → the canvas' light text
+	 *   data-dm-ink="author"  the author picked a text colour → leave it, and
+	 *                         let the block's content inherit it
+	 *
+	 * A data attribute rather than a class: React owns the block's className
+	 * and rewrites it on every selection change; it leaves attributes it never
+	 * set alone.
+	 */
+	var INK_ATTR = 'data-dm-ink';
+	var INK_SCAN = '.has-background,.has-text-color,.wp-block-cover,[style*="color"],[' + INK_ATTR + ']';
+
+	// Background luminance at which the canvas' light text and dark text are
+	// equally legible (both about 3.8:1). Above it, dark text reads better.
+	var INK_THRESHOLD = 0.19;
+
+	/**
+	 * Relative luminance of a computed colour, or null when it is transparent
+	 * enough not to count, or in a format this does not parse.
+	 *
+	 * @param {string} colour Computed colour value.
+	 * @return {?number} Luminance between 0 and 1.
+	 */
+	function luminance( colour ) {
+		var srgb = /^color\(srgb/.test( colour || '' );
+		var parts = ( colour || '' ).match( /[\d.]+/g );
+
+		if ( ! parts || parts.length < 3 || ( ! /^(rgb|color\(srgb)/.test( colour ) ) ) {
+			return null;
+		}
+
+		if ( parts.length > 3 && Number( parts[ 3 ] ) < 0.5 ) {
+			return null;
+		}
+
+		var c = parts.slice( 0, 3 ).map( function ( v ) {
+			v = srgb ? Number( v ) : Number( v ) / 255;
+			return v <= 0.03928 ? v / 12.92 : Math.pow( ( v + 0.055 ) / 1.055, 2.4 );
+		} );
+
+		return 0.2126 * c[ 0 ] + 0.7152 * c[ 1 ] + 0.0722 * c[ 2 ];
+	}
+
+	function inkFor( el, view ) {
+		if ( el.classList.contains( 'has-text-color' ) || el.style.color ) {
+			return 'author';
+		}
+
+		// A Cover paints its colour on a child overlay, not on itself; the
+		// editor already works out whether that overlay is light.
+		if ( el.classList.contains( 'wp-block-cover' ) ) {
+			return el.classList.contains( 'is-light' ) ? 'light' : 'dark';
+		}
+
+		var lum = luminance( view.getComputedStyle( el ).backgroundColor );
+
+		if ( null === lum ) {
+			return '';
+		}
+
+		return lum > INK_THRESHOLD ? 'light' : 'dark';
+	}
+
+	function markInk( doc ) {
+		var view = doc.defaultView;
+
+		if ( ! view ) {
+			return;
+		}
+
+		Array.prototype.forEach.call( doc.querySelectorAll( INK_SCAN ), function ( el ) {
+			var ink = inkFor( el, view );
+
+			if ( ink ) {
+				if ( el.getAttribute( INK_ATTR ) !== ink ) {
+					el.setAttribute( INK_ATTR, ink );
+				}
+			} else if ( el.hasAttribute( INK_ATTR ) ) {
+				el.removeAttribute( INK_ATTR );
+			}
+		} );
+	}
+
+	/**
+	 * Keep the tags current while the author works: new blocks, a background
+	 * picked from the sidebar, a block converted to a Group.
+	 *
+	 * Only class and style changes are watched, so tagging never re-triggers
+	 * itself. The pass runs synchronously in the observer callback: that is a
+	 * microtask straight after the editor's DOM commit, so it always lands
+	 * before the next paint. Deferring it to requestAnimationFrame let a block
+	 * that was just given a light background paint at least one frame of
+	 * unreadable text. The observer already batches every mutation of a commit
+	 * into one call, and the pass only visits coloured blocks.
+	 *
+	 * @param {Document} doc Canvas document.
+	 */
+	function watchInk( doc ) {
+		var view = doc.defaultView;
+
+		if ( ! view || ! doc.body || doc.body.dmInkWatched ) {
+			return;
+		}
+
+		doc.body.dmInkWatched = true;
+
+		new view.MutationObserver( function () {
+			markInk( doc );
+		} ).observe( doc.body, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			attributeFilter: [ 'class', 'style' ],
+		} );
+
+		markInk( doc );
+	}
+
 	/**
 	 * Push the current state into every editor canvas on the page.
 	 *
@@ -158,18 +289,88 @@
 				// dark inside the editor. Without this the canvas would depend
 				// entirely on the class landing before the next frame.
 				setDocStyle( doc, CANVAS_STYLE_ID, dark && 'disabled' === initialPref ? cfg.canvasDark : '' );
+
+				watchInk( doc );
 			} catch ( e ) {
 				// Cross-origin canvas; nothing we can do, and nothing broken.
 			}
 		} );
+	}
 
-		var mce = document.getElementById( 'content_ifr' );
+	// ---------------------------------------------------------------------
+	// Classic editors (TinyMCE)
+	// ---------------------------------------------------------------------
 
-		if ( mce ) {
+	/**
+	 * The state TinyMCE documents were last explicitly put in, or null while
+	 * the server-rendered content_style is still in charge. That one follows
+	 * "auto" through its own media query, so nothing is injected until the
+	 * user actually toggles.
+	 *
+	 * @type {?boolean}
+	 */
+	var mceState = null;
+
+	/**
+	 * Every TinyMCE content document on the page.
+	 *
+	 * Previously only #content_ifr was handled, so WooCommerce's product short
+	 * description, ACF WYSIWYG fields and every other wp_editor() kept the old
+	 * state after a toggle. The body check keeps this to real TinyMCE content
+	 * documents and away from any other iframe whose id happens to end in _ifr.
+	 *
+	 * @return {Document[]} Content documents.
+	 */
+	function mceDocs() {
+		var docs = [];
+
+		Array.prototype.forEach.call( document.querySelectorAll( 'iframe[id$="_ifr"]' ), function ( frame ) {
 			try {
-				setDocStyle( mce.contentDocument, TINYMCE_STYLE_ID, dark ? '' : cfg.tinymceLight );
+				var doc = frame.contentDocument;
+
+				if ( doc && doc.body && doc.body.classList.contains( 'mce-content-body' ) ) {
+					docs.push( doc );
+				}
 			} catch ( e ) {}
+		} );
+
+		return docs;
+	}
+
+	function syncTinyMCE() {
+		if ( ! cfg.tinymce ) {
+			return;
 		}
+
+		mceDocs().forEach( function ( doc ) {
+			var css = '';
+
+			if ( null !== mceState ) {
+				css = mceState ? cfg.tinymceDark : cfg.tinymceLight;
+			}
+
+			setDocStyle( doc, TINYMCE_STYLE_ID, css );
+		} );
+	}
+
+	/**
+	 * Editors initialised after a toggle — an ACF repeater row, a field that
+	 * only builds its editor when shown — are brought in line as they appear.
+	 * TinyMCE itself loads after this script, so the hook is attached once it
+	 * exists.
+	 *
+	 * @return {boolean} Whether TinyMCE was there to hook into.
+	 */
+	function watchTinyMCE() {
+		if ( ! window.tinymce || ! window.tinymce.on ) {
+			return false;
+		}
+
+		window.tinymce.on( 'AddEditor', function ( event ) {
+			event.editor.on( 'init', syncTinyMCE );
+		} );
+
+		return true;
 	}
 
 	/**
@@ -245,6 +446,9 @@
 		if ( cfg.editorCanvas ) {
 			syncCanvases( dark );
 		}
+
+		mceState = dark;
+		syncTinyMCE();
 	}
 
 	/**
@@ -279,6 +483,10 @@
 			if ( cfg.editorCanvas ) {
 				syncCanvases( dark );
 			}
+
+			// Back to the server's content_style, which follows the OS itself.
+			mceState = null;
+			syncTinyMCE();
 
 			return;
 		}
@@ -392,5 +600,9 @@
 
 	if ( cfg.editorCanvas ) {
 		watchCanvases();
+	}
+
+	if ( cfg.tinymce && ! watchTinyMCE() ) {
+		window.addEventListener( 'load', watchTinyMCE );
 	}
 } )();

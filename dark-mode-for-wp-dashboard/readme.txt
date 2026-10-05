@@ -2,7 +2,7 @@
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.1
-Stable tag: 1.3.10
+Stable tag: 1.3.11
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -106,6 +106,15 @@ Written as `body.dark-mode .editor-styles-wrapper p`, with a space, it looks for
 3. Pages
 
 == Changelog ==
+= 1.3.11 =
+- Fixed: in the block editor, text typed into input fields was invisible — the web address box when adding a link, the block and pattern search, and the number and size fields in the sidebar. The field looked empty while you typed. The dark fill was painted on a layer that sits on top of the text instead of behind it. Thanks to the reporter on the support forum
+- Fixed: on WordPress 7, the Blocks / Patterns / Media tabs in the block inserter, the pattern categories (All, About, Banners…), the "Post" link at the start of the breadcrumb bar and the group headings in the command palette (⌘K) were dark text on a dark background. The highlighted command in the palette is now also readable
+- Fixed: in the block editor, blocks you gave a light background — a white Group, a cream paragraph, a light Cover, a coloured table — showed their text in dark mode's light grey, which was close to invisible on them. Each coloured block is now measured and given text that reads on its own background: dark on light, light on dark. Text colours you picked yourself are left exactly as you set them, and the post itself is not changed
+- Fixed: editors on the public site of your website — front-end forms, forums, course and member areas — were dark for every visitor, including people who were not logged in. Dark mode now stays inside the dashboard
+- Fixed: switching dark mode on or off from the toolbar only changed the main post editor. Other classic editors on the same screen, such as the WooCommerce product short description or ACF text editor fields, kept the old colours until the page was reloaded. All of them now switch together, including ones added to the page afterwards. Text colours set in the editor are no longer overridden when switching to light
+- Fixed: saving another user's profile — to change their email address, for example — quietly stored the default appearance as their own choice, so a site-wide default changed later no longer applied to them. A preference is now only stored when it actually differs
+- Fixed: deleting the plugin on a multisite network now removes its small housekeeping setting from every site, not only the current one
+
 = 1.3.10 =
 - Added: WPCode (Insert Headers and Footers) support — a different plugin from Code Snippets. Its editor panels and snippet list were unreadable in dark mode. Thanks to catmaniax
 - Fixed (docs): `dark_mode_dashboard_css` replaces the admin stylesheet rather than adding to it, and never reaches the post editor. Corrected, plus a new FAQ on adding your own CSS. Thanks to Trace Meek

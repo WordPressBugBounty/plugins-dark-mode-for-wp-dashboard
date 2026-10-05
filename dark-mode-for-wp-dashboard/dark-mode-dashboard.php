@@ -6,7 +6,7 @@
  * Author: Naiche
  * Author URI: https://profiles.wordpress.org/naiches/
  * Text Domain: dark-mode-for-wp-dashboard
- * Version: 1.3.10
+ * Version: 1.3.11
  * Tested up to: 7.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     die();
 }
 
-define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.10' );
+define( 'DARK_MODE_DASHBOARD_VERSION', '1.3.11' );
 define( 'DARK_MODE_DASHBOARD_PLUGIN_PATH', plugin_dir_url( __FILE__ ) );
 define( 'DARK_MODE_DASHBOARD_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -51,12 +51,22 @@ function dark_mode_dashboard_tokens() {
  * one function, so the dark_mode_dashboard_default_preference filter is
  * honoured everywhere rather than in one place out of three.
  *
+ * @param int|null $user_id User to resolve for. Defaults to the current user.
  * @return string 'enabled', 'disabled' or 'auto'.
  */
-function dark_mode_dashboard_get_preference() {
+function dark_mode_dashboard_get_preference( $user_id = null ) {
     $allowed = array( 'enabled', 'disabled', 'auto' );
-    $user_id = get_current_user_id();
-    $pref    = get_user_meta( $user_id, 'dark_mode_preference', true );
+    $user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
+
+    // No user means a visitor (or a request nobody is logged in to). Dark mode
+    // is a dashboard preference; it must never decide how the public site
+    // looks. Resolving user 0 through the default below handed every logged-out
+    // visitor 'enabled', and with it a dark front-end TinyMCE.
+    if ( ! $user_id ) {
+        return 'disabled';
+    }
+
+    $pref = get_user_meta( $user_id, 'dark_mode_preference', true );
 
     if ( in_array( $pref, $allowed, true ) ) {
         return $pref;
@@ -431,6 +441,41 @@ function dark_mode_dashboard_enqueue_editor_styles() {
 add_action( 'enqueue_block_assets', 'dark_mode_dashboard_enqueue_editor_styles' );
 
 /**
+ * Whether the editor integrations below may touch this request at all.
+ *
+ * Both block_editor_settings_all and tiny_mce_before_init also fire on the
+ * public site — wp_editor() in acf_form(), bbPress, LMS and front-end
+ * submission plugins — and on the Customizer, none of which carries the dark
+ * dashboard around them. Without this guard those editors were painted dark
+ * inside a light page.
+ *
+ * @return bool
+ */
+function dark_mode_dashboard_editor_integration_applies() {
+    return is_admin()
+        && dark_mode_dashboard_screen_supports_body_class()
+        && apply_filters( 'dark_mode_dashboard_editor_canvas', true );
+}
+
+/**
+ * Dark styles for the TinyMCE (classic editor) document.
+ *
+ * Used twice: inlined as content_style before first paint, and handed to the
+ * toolbar toggle so it can darken an editor that was rendered light. Text
+ * colours are deliberately not !important, so colours the author picked in the
+ * editor (inline styles) still show.
+ *
+ * @return string
+ */
+function dark_mode_dashboard_tinymce_css() {
+    $t = dark_mode_dashboard_tokens();
+
+    return 'html,body,body#tinymce,body.mce-content-body{background:' . $t['bg-input'] . '!important;color:' . $t['text-primary'] . '!important}'
+        . 'body a{color:' . $t['accent'] . '}'
+        . 'body p,body li,body td,body th,body div,body span{color:' . $t['text-primary'] . '}';
+}
+
+/**
  * Inline CSS handed to the block editor as part of its settings.
  *
  * WordPress injects these before the canvas iframe paints its first frame, so
@@ -444,9 +489,13 @@ add_action( 'enqueue_block_assets', 'dark_mode_dashboard_enqueue_editor_styles' 
  * @return array
  */
 function dark_mode_dashboard_editor_settings( $settings ) {
+    if ( ! dark_mode_dashboard_editor_integration_applies() ) {
+        return $settings;
+    }
+
     $preference = dark_mode_dashboard_get_preference();
 
-    if ( 'disabled' === $preference || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
+    if ( 'disabled' === $preference ) {
         return $settings;
     }
 
@@ -483,16 +532,17 @@ add_filter( 'block_editor_settings_all', 'dark_mode_dashboard_editor_settings' )
  * @return array
  */
 function dark_mode_dashboard_tinymce_init( $mce_init ) {
-    $preference = dark_mode_dashboard_get_preference();
-
-    if ( 'disabled' === $preference || ! apply_filters( 'dark_mode_dashboard_editor_canvas', true ) ) {
+    if ( ! dark_mode_dashboard_editor_integration_applies() ) {
         return $mce_init;
     }
 
-    $t      = dark_mode_dashboard_tokens();
-    $styles = 'html,body,body#tinymce,body.mce-content-body{background:' . $t['bg-input'] . '!important;color:' . $t['text-primary'] . '!important}'
-        . 'body a{color:' . $t['accent'] . '}'
-        . 'body p,body li,body td,body th,body div,body span{color:' . $t['text-primary'] . '}';
+    $preference = dark_mode_dashboard_get_preference();
+
+    if ( 'disabled' === $preference ) {
+        return $mce_init;
+    }
+
+    $styles = dark_mode_dashboard_tinymce_css();
 
     if ( 'auto' === $preference ) {
         $styles = '@media (prefers-color-scheme:dark){' . $styles . '}';
@@ -702,8 +752,17 @@ function dark_mode_dashboard_enqueue_toggle_script() {
             'nonce'        => wp_create_nonce( 'dark_mode_dashboard_nonce' ),
             'preference'   => dark_mode_dashboard_get_preference(),
             'editorCanvas' => apply_filters( 'dark_mode_dashboard_editor_canvas', true ) && dark_mode_dashboard_is_editor_screen(),
+            // Classic editors live on far more screens than the editor ones
+            // (WooCommerce's short description, ACF WYSIWYG fields, options
+            // pages), so they are synced on any screen, gated only by the filter.
+            'tinymce'      => (bool) apply_filters( 'dark_mode_dashboard_editor_canvas', true ),
             'lazyStyles'   => $styles,
-            'tinymceLight' => 'html,body,body#tinymce,body.mce-content-body{background:#fff!important;color:#444!important}body p,body li,body td,body th,body div,body span{color:#444!important}body a{color:#0073aa!important}',
+            // The override is appended after content_style, so it wins on
+            // source order; only the body paint needs !important to beat the
+            // dark content_style's own. Text colours stay overridable by the
+            // author's inline colours, the same as in the dark version.
+            'tinymceLight' => 'html,body,body#tinymce,body.mce-content-body{background:#fff!important;color:#444!important}body p,body li,body td,body th,body div,body span{color:#444}body a{color:#0073aa}',
+            'tinymceDark'  => dark_mode_dashboard_tinymce_css(),
             'canvasDark'   => 'body{background-color:' . dark_mode_dashboard_tokens()['bg-base'] . ';color:' . dark_mode_dashboard_tokens()['text-primary'] . '}',
             'i18n'         => array(
                 'switchToLight' => __( 'Switch to light mode', 'dark-mode-for-wp-dashboard' ),
@@ -758,20 +817,9 @@ add_action( 'wp_ajax_dark_mode_dashboard_toggle', 'dark_mode_dashboard_ajax_togg
  * @param WP_User $user The user being edited.
  */
 function dark_mode_dashboard_user_profile_fields( $user ) {
-    $allowed    = array( 'enabled', 'disabled', 'auto' );
-    $preference = get_user_meta( $user->ID, 'dark_mode_preference', true );
-
-    if ( ! in_array( $preference, $allowed, true ) ) {
-        // Same resolver the rest of the plugin uses, so the radio that appears
-        // selected is the one actually in effect.
-        $preference = get_current_user_id() === (int) $user->ID
-            ? dark_mode_dashboard_get_preference()
-            : apply_filters( 'dark_mode_dashboard_default_preference', 'enabled' );
-
-        if ( ! in_array( $preference, $allowed, true ) ) {
-            $preference = 'enabled';
-        }
-    }
+    // Same resolver the rest of the plugin uses, for whichever user is being
+    // edited, so the radio that appears selected is the one actually in effect.
+    $preference = dark_mode_dashboard_get_preference( $user->ID );
 
     $choices = array(
         'enabled'  => __( 'Dark (always)', 'dark-mode-for-wp-dashboard' ),
@@ -826,6 +874,18 @@ function dark_mode_dashboard_save_user_profile_fields( $user_id ) {
     $preference = sanitize_text_field( wp_unslash( $_POST['dark_mode_preference'] ) );
 
     if ( ! in_array( $preference, $allowed, true ) ) {
+        return;
+    }
+
+    // The radio group always submits something, so saving a profile for any
+    // other reason — an admin changing someone's email — used to write the
+    // default in as that user's explicit choice, after which a later change to
+    // dark_mode_dashboard_default_preference no longer reached them. A user
+    // with no stored choice only gets one when the submitted value differs
+    // from what they already resolve to.
+    $stored = get_user_meta( $user_id, 'dark_mode_preference', true );
+
+    if ( ! in_array( $stored, $allowed, true ) && dark_mode_dashboard_get_preference( $user_id ) === $preference ) {
         return;
     }
 
