@@ -2,7 +2,7 @@
 Contributors: naiches
 Tags: dark mode, admin theme, dashboard, night mode, accessibility
 Tested up to: 7.1
-Stable tag: 1.3.11
+Stable tag: 1.3.12
 Requires at least: 6.0
 Requires PHP: 7.4
 License: GPLv2 or later
@@ -106,6 +106,9 @@ Written as `body.dark-mode .editor-styles-wrapper p`, with a space, it looks for
 3. Pages
 
 == Changelog ==
+= 1.3.12 =
+- Fixed: unreadable font size picker in the block editor sidebar
+
 = 1.3.11 =
 - Fixed: in the block editor, text typed into input fields was invisible — the web address box when adding a link, the block and pattern search, and the number and size fields in the sidebar. The field looked empty while you typed. The dark fill was painted on a layer that sits on top of the text instead of behind it. Thanks to the reporter on the support forum
 - Fixed: on WordPress 7, the Blocks / Patterns / Media tabs in the block inserter, the pattern categories (All, About, Banners…), the "Post" link at the start of the breadcrumb bar and the group headings in the command palette (⌘K) were dark text on a dark background. The highlighted command in the palette is now also readable
